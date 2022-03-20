@@ -50,7 +50,6 @@ class Scheduler(_LRScheduler):
         return self.start_lr + (self.current_step * step_diff)
 
     def step(self, loss=None):
-        print("Step")
         self.current_step += 1
 
         if self.current_step >= self.num_steps:
