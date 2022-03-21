@@ -30,7 +30,6 @@ class Scheduler(_LRScheduler):
         self.last_lr = start_lr
         self.current_lr = start_lr
 
-        self.current_loss = None
         self.last_loss = None
 
         # We also maintain finished to track if the criterion has returned true
@@ -52,18 +51,23 @@ class Scheduler(_LRScheduler):
     def step(self, loss=None):
         self.current_step += 1
 
-        if self.current_step >= self.num_steps:
-            self.finished = True
+        # Only recalculate the criterion and set finished if we are not already
+        # finished to avoid accidentally re-fixing the LR
+        if not self.finished:
+            if self.current_step >= self.num_steps:
+                self.finished = True
 
-        if self.criterion != None:
-            crit = self.criterion(self.current_step, self.last_lr, self.last_loss, self.current_lr, self.current_loss)
-        else:
-            crit = None
+            if self.criterion != None:
+                crit = self.criterion(self.current_step, self.last_lr, self.last_loss, self.current_lr, loss)
+            else:
+                crit = None
 
-        if crit != None:
-            self.update_lr(crit)
-            self.finished = True
+            if crit != None:
+                self.update_lr(crit)
+                self.finished = True
 
+        # Based on whether we are finished, either update the LR to the current step or
+        # pass through to the underlying scheduler
         if self.finished:
             if self.pass_through_loss_to_underlying:
                 self.underlying_scheduler.step(loss)
@@ -72,5 +76,5 @@ class Scheduler(_LRScheduler):
         else:
             self.update_lr(self.calculate_next_lr())
 
-        self.last_loss = self.current_loss
-        self.current_loss = loss
+        # Cache the last loss for t+1 criterion
+        self.last_loss = loss
